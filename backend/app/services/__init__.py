@@ -21,6 +21,7 @@ from app.services.freshness_mon import FreshnessMonService
 from app.services.data_exporter import DataExporterService
 from app.services.schedule_job import ScheduleJobService
 from app.services.data_lake_read import DataLakeReadService
+from app.services.lake_batch_register import LakeBatchRegisterService, LakeScanReceiptService
 from app.services.result_cache import ResultCacheService
 from app.services.data_contract import DataContractService
 from app.services.ab_config import AbConfigService
@@ -45,6 +46,8 @@ SERVICES: dict[str, BaseModuleService] = {
     "data_exporter": DataExporterService(),
     "schedule_job": ScheduleJobService(),
     "data_lake_read": DataLakeReadService(),
+    "lake_batch_register": LakeBatchRegisterService(),
+    "lake_scan_receipt": LakeScanReceiptService(),
     "result_cache": ResultCacheService(),
     "data_contract": DataContractService(),
     "ab_config": AbConfigService(),

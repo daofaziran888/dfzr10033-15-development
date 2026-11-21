@@ -25,6 +25,8 @@ SEED_ROWS: dict[str, list[dict[str, Any]]] = {
     "data_exporter": [_seed(1, {"任务编号":"DATA-0001","数据来源":"result_cache","筛选条件":"all","输出格式":"csv","字段列表":"*","排序规则":"id","导出上限":"1000","接收地址":"local://"})],
     "schedule_job": [_seed(1, {"任务编号":"SCHE-0001","目标立方":"1","Cron表达式":"0 */1 * * *","时区设置":"Asia/Shanghai","依赖检查":"none","超时上限":"600","失败通知":"email","下次执行":"-"})],
     "data_lake_read": [_seed(1, {"路径编号":"DATA-0001","存储位置":"s3://data-lake/prod","文件格式":"parquet","分区模式":"dt","Schema推导":"","文件列表":"","最后扫描":"","数据量":""})],
+    "lake_batch_register": [dict(_seed(1, {"清单编号":"LBR-0001","数据集":"demo_events","来源路径":"s3://data-lake/prod","条目总数":"1","已接入数":"0","待重试数":"1","重试次数":"0","批次状态":"待提交"}), status="待提交")],
+    "lake_scan_receipt": [dict(_seed(1, {"回执编号":"RCV-0001","清单编号":"LBR-0001","数据集":"demo_events","存储位置":"s3://data-lake/prod","文件格式":"parquet","扫描版本号":"","Schema字段":"","文件覆盖范围":"","源编号":"","登记结果":"待扫描","失败原因":"等待整组扫描"}), status="待扫描")],
     "result_cache": [_seed(1, {"条目编号":"RESU-0001","查询摘要":"sample query","结果哈希":"abc123","缓存命中":"5","过期时间":"2027-01-01","存储大小":"100","创建时间":"2026-11-01","最后命中":"2026-11-01"})],
     "data_contract": [_seed(1, {"契约编号":"DATA-0001","数据集":"analytics","Schema约束":"id,name,value","SLA定义":"每小时更新","更新频率":"3600","负责人":"admin","消费者":"dashboard","生效时间":"2026-11-01"})],
     "ab_config": [_seed(1, {"实验编号":"AB_C-0001","实验名称":"实验配置样例","分流比例":"50:50","指标集合":"revenue","对照组":"baseline","实验组":"variant","置信水平":"0.95","运行期间":"2026-11"})],

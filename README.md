@@ -69,6 +69,8 @@ npm run dev
 | 分析导出 | `data_exporter` | 导出任务 | 任务编号、数据来源、筛选条件 |
 | 定时计算 | `schedule_job` | 预计算任务 | 任务编号、目标立方、Cron表达式 |
 | 湖仓读取 | `data_lake_read` | 湖仓路径 | 路径编号、存储位置、文件格式 |
+| 湖仓批量登记清单 | `lake_batch_register` | 批量登记清单 | 清单编号、数据集、来源路径、批次状态 |
+| 湖仓扫描回执 | `lake_scan_receipt` | 扫描回执 | 回执编号、扫描版本号、Schema字段、文件覆盖范围、登记结果 |
 | 结果缓存 | `result_cache` | 缓存条目 | 条目编号、查询摘要、结果哈希 |
 | 数据契约 | `data_contract` | 契约定义 | 契约编号、数据集、Schema约束 |
 | 实验配置 | `ab_config` | AB实验 | 实验编号、实验名称、分流比例 |

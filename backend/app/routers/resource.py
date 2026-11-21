@@ -92,6 +92,7 @@ from app.services.data_exporter import DataExporterService
 from app.services.result_cache import ResultCacheService
 from app.services.aggregate_cache import AggregateCacheService
 from app.services.data_lake_read import DataLakeReadService
+from app.services.lake_batch_register import LakeBatchRegisterService
 from app.services.query_rewrite import QueryRewriteService
 from app.services.query_audit import QueryAuditService
 from app.services.cost_govern import CostGovernService
@@ -106,6 +107,7 @@ exporter_svc = DataExporterService()
 result_cache_svc = ResultCacheService()
 agg_cache_svc = AggregateCacheService()
 lake_svc = DataLakeReadService()
+lake_batch_svc = LakeBatchRegisterService()
 rewrite_svc = QueryRewriteService()
 audit_svc = QueryAuditService()
 cost_svc = CostGovernService()
@@ -221,3 +223,73 @@ def pipeline_cost_aggregate_alert() -> dict[str, Any]:
             "cost_aggregation": cost_svc.aggregate_module_costs(),
             "quota_check": cost_svc.check_monthly_quota(),
             "cache_report": result_cache_svc.cache_hit_rate_report()}
+
+
+# -- 湖仓批量登记清单：整组提交 → 扫描证据 → 数据源注册 → 回执回写 --
+
+def _parse_blocked(blocked: str | None) -> dict[int, list[str]]:
+    """解析故障注入参数，格式：path_id:dt1,dt2;path_id:dt3。"""
+    result: dict[int, list[str]] = {}
+    for group in (blocked or "").split(";"):
+        group = group.strip()
+        if not group or ":" not in group:
+            continue
+        path_part, _, dt_part = group.partition(":")
+        try:
+            path_id = int(path_part.strip())
+        except ValueError:
+            continue
+        partitions = [dt.strip() for dt in dt_part.split(",") if dt.strip()]
+        if partitions:
+            result[path_id] = partitions
+    return result
+
+
+@router.post("/pipelines/lake-batch-register")
+def pipeline_lake_batch_register(
+    manifest_no: str = Query(...), dataset: str = Query(...),
+    storage_paths: str = Query(..., description="多条路径以逗号分隔，须为已登记湖仓路径"),
+    blocked: str | None = Query(default=None, description="故障注入：path_id:dt,dt;..."),
+) -> dict[str, Any]:
+    """对同一数据集的多条路径发起一次批量扫描并整组登记。"""
+    entry, msg = lake_batch_svc.create_manifest({
+        "清单编号": manifest_no,
+        "数据集": dataset,
+        "来源路径": storage_paths,
+    })
+    if entry is None:
+        raise HTTPException(status_code=400, detail=msg)
+    submit = lake_batch_svc.submit_manifest(
+        entry["id"], blocked_partitions=_parse_blocked(blocked)
+    )
+    receipts = [
+        row for row in store.rows("lake_scan_receipt") if row.get("manifest_id") == entry["id"]
+    ]
+    return {"ok": True, "pipeline": "lake_batch_register",
+            "manifest": entry, "submit": submit, "receipts": receipts}
+
+
+@router.post("/pipelines/lake-batch-retry")
+def pipeline_lake_batch_retry(
+    manifest_id: int = Query(...),
+    blocked: str | None = Query(default=None, description="仍读不到的分区：path_id:dt,dt;..."),
+    restored: str | None = Query(default=None, description="已恢复的分区：path_id:dt,dt;..."),
+) -> dict[str, Any]:
+    """扫描中断后按同一批次编号重试整组：恢复分区后只补登失败路径，原成功条目不增副本。"""
+    for path_part in (restored or "").split(";"):
+        path_part = path_part.strip()
+        if path_part and ":" in path_part:
+            pid, _, dts = path_part.partition(":")
+            try:
+                lake_batch_svc.restore_partition(int(pid.strip()), [d.strip() for d in dts.split(",") if d.strip()])
+            except ValueError:
+                continue
+    result = lake_batch_svc.retry_manifest(manifest_id, blocked_partitions=_parse_blocked(blocked))
+    if not result["ok"]:
+        raise HTTPException(status_code=400, detail=result["message"])
+    manifest = store.find("lake_batch_register", manifest_id)
+    receipts = [
+        row for row in store.rows("lake_scan_receipt") if row.get("manifest_id") == manifest_id
+    ]
+    return {"ok": True, "pipeline": "lake_batch_retry",
+            "manifest": manifest, "submit": result, "receipts": receipts}
